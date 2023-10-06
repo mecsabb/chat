@@ -7,9 +7,8 @@ import {
 
 import Home from './routes/root.tsx'
 import Test from './routes/test.tsx'
+import LoginPage from './routes/login.tsx'
 import ErrorPage from './error-page.tsx'
-
-import './index.css'
 
 const router = createBrowserRouter([
   {
@@ -20,6 +19,11 @@ const router = createBrowserRouter([
   {
     path: "test",
     element: <Test />,
+    errorElement: <ErrorPage />
+  },
+  {
+    path: "login",
+    element: <LoginPage />,
     errorElement: <ErrorPage />
   }
 ])

@@ -1,0 +1,55 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+.title {
+    position: fixed;
+    top: 5px;
+    left: 10px;
+    width: 500px;
+}
+
+.test-container {
+    position: absolute;
+    left: 10px;
+    top: 30%;
+    display: inline-flex;
+    flex-direction: row;
+    justify-content: center;
+    border: solid rgb(0, 0, 0);
+}
+
+.button-text {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+}
+
+.get-button {
+    align-self: flex-start;
+}
+
+.post-button{
+    align-self: flex-start;
+}
+
+.card {
+    padding: 2em;
+}
+
+.form-wrapper {
+    display: flex;
+    position: fixed;
+    left: 40%;
+    top: 30%;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+}
+
+.input {
+    align-self: start;
+}
