@@ -1,11 +1,11 @@
--- CHAT --
-A simple real time chat application.  Written with React + Go.
+**CHAT**\
+A simple real time chat application.  Written with React + Go.\
 
--- RUNNING --
-(frontend)
-cd ui
-npm run dev
+**RUNNING**\
+Frontend:\
+cd ui\
+npm run dev\
 
-(backend)
-cd cmd
-go run .
+Backend:\
+cd cmd\
+go run .\
