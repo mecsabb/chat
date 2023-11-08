@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"log"
 	"time"
 
@@ -33,9 +32,9 @@ var (
 )
 
 type Task struct {
-	from string
-	to   string
-	msg  []byte
+	From string `json:"from"`
+	To   string `json:"to"`
+	Msg  string `json:"msg"` // << used to be byte
 }
 
 type Client struct {
@@ -54,15 +53,16 @@ func (c *Client) listen() {
 	c.ws.SetReadDeadline(time.Now().Add(pongWait))
 	c.ws.SetPongHandler(func(string) error { c.ws.SetReadDeadline(time.Now().Add(pongWait)); return nil })
 	for {
-		_, message, err := c.ws.ReadMessage()
+		log.Println("------ client.listen ------")
+		task := &Task{}
+		err := c.ws.ReadJSON(task)
+		log.Printf("To: %s, From: %s, Msg: %s", task.To, task.From, task.Msg)
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
 			}
 			break
 		}
-		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		task := &Task{from: c.user, to: "Test", msg: message} // how to get to?
 		c.server.tasks <- task
 	}
 }
@@ -74,18 +74,18 @@ func (c *Client) write() {
 	for {
 		select {
 		case task, ok := <-c.message:
-			message := task.msg
+			log.Println("------ client.write ------")
 			c.ws.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
+				log.Println("client.write channel closed")
 				c.ws.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			w, err := c.ws.NextWriter(websocket.TextMessage)
-			if err != nil {
+			if task == nil {
 				return
 			}
-			w.Write(message)
+			c.ws.WriteJSON(task)
 		}
 	}
 }

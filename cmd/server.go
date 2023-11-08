@@ -1,5 +1,9 @@
 package main
 
+import (
+	"log"
+)
+
 type Server struct {
 	connections map[string]*Client
 	tasks       chan *Task
@@ -18,7 +22,11 @@ func (s *Server) spin() {
 				close(client.message)
 			}
 		case task := <-s.tasks: // Error handle ?
-			s.connections[task.to].message <- task
+			if client, ok := s.connections[task.To]; ok {
+				client.message <- task
+			} else {
+				log.Printf("SERVER: No such user: %s", task.To)
+			}
 		}
 	}
 }
