@@ -1,17 +1,19 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 )
 
 type User struct {
-	username string
-	password string
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 // for localhost ease of use
@@ -33,31 +35,55 @@ func getHome(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonResp)
 }
 
-func handleLogin(s *Server, w http.ResponseWriter, r *http.Request) {
-	// Generic GET response for debug
-	if r.Method == "GET" {
-		resp := make(map[string]string)
-		resp["GET"] = "/login Request: Success"
-		jsonResp, err := json.Marshal(resp)
-		if err != nil {
-			fmt.Printf("Error happened in JSON marshal. Err: %s", err)
+func logRequest(r *http.Request) {
+	log.Println("------ New Request ------")
+	log.Printf("Method: %s\n", r.Method)
+	log.Printf("Path: %s\n", r.URL.Path)
+	log.Println("Headers:")
+
+	for name, headers := range r.Header {
+		for _, h := range headers {
+			log.Printf("%v: %v\n", name, h)
 		}
-		w.Write(jsonResp)
 	}
 
-	// postLogin is responsible for handing user login functionality
-	if r.Method == "POST" {
-		user := &User{}
-
-		// Recieve user info in post request (decode JSON into user)
-		err := json.NewDecoder(r.Body).Decode(user)
+	// Can remove if body of requests are long
+	if r.Body != nil {
+		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
-			log.Println(err)
+			log.Printf("Error reading body: %v", err)
 			return
 		}
 
-		fmt.Printf("User: %s, Pass: %s", user.username, user.password)
-		w.Write([]byte("Pre Upgrader"))
+		// Ensure the request body can be read again for further processing
+		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+		log.Printf("Body: %s\n", string(bodyBytes))
+	}
+
+	log.Println("------ End of Request ------")
+}
+
+func handleLogin(s *Server, w http.ResponseWriter, r *http.Request) {
+
+	logRequest(r)
+
+	if r.Method == "GET" {
+
+		if r.Header.Get("Upgrade") != "websocket" {
+			log.Println("Not a WebSocket upgrade request")
+			return
+		}
+
+		username, password, ok := r.BasicAuth()
+		if !ok {
+			log.Println("Authorization header missing or invalid")
+			return
+		}
+
+		user := &User{Username: username, Password: password}
+
+		log.Printf("User: %s, Pass: %s\n", user.Username, user.Password)
+
 		// << TODO --------- VERIFY USER CREDS -----------
 		// throw / return if invalid
 
@@ -67,10 +93,8 @@ func handleLogin(s *Server, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		client := &Client{user: user.username, ws: conn, server: s, message: make(chan *Task)}
+		client := &Client{user: user.Username, ws: conn, server: s, message: make(chan *Task)}
 		client.server.register <- client
-
-		w.Write([]byte(client.user))
 
 		// Spin client
 		go client.listen()
