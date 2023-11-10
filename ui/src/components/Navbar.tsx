@@ -9,7 +9,7 @@ export default function Navbar() {
                     <a href="/" className="text-xl font-extrabold px-5 text-white">Chat</a>
                     <div className="flex items-center lg:order-2">
                         <a href="/login" className="text-white px-10">Log in</a>
-                        <a href="/#" className="text-white px-10">Get started</a>
+                        <a href="/register" className="text-white px-10">Get started</a>
                     </div>
                 </div>
             </nav>
