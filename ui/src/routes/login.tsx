@@ -1,8 +1,36 @@
 //TODO cleanup CSS tags
 
+import React, { useState } from 'react';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import Navbar from "../components/Navbar"
 
 export default function LoginPage() {
+
+    const [username, setUsername] = useState<string>(''); // TypeScript infers string type
+    const [password, setPassword] = useState<string>(''); // TypeScript infers string type
+    const navigate = useNavigate();
+
+    const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        const basicAuth = 'Basic ' + window.btoa(username + ':' + password);
+
+        try {
+            // Adjust the response type according to your API structure
+            const response = await axios.get('http://localhost:3333/login', {
+                headers: { 'Authorization': basicAuth }
+            });
+
+            // Handle successful login TBD
+            console.log(response.data);
+            navigate('/hub');
+
+        } catch (error) {
+            console.error('Login error:', error);
+            // Handle login error TBD
+        }
+    }
 
     return (
         <>
@@ -15,14 +43,26 @@ export default function LoginPage() {
                         <h1 className="text-xl font-bold leading-tight tracking-tight text-gray-900 md:text-2xl dark:text-white">
                             Sign in to your account
                         </h1>
-                        <form className="space-y-4 md:space-y-6" action="#">
+                        <form className="space-y-4 md:space-y-6" onSubmit={handleLogin}>
                             <div>
                                 <label htmlFor="username" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Username</label>
-                                <input type="username" name="username" id="username" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Username" />
+                                <input 
+                                    type="username" 
+                                    name="username" 
+                                    id="username"
+                                    onChange={(e) => setUsername(e.target.value)} 
+                                    className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray -400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" 
+                                    placeholder="Username" />
                             </div>
                             <div>
                                 <label htmlFor="password" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Password</label>
-                                <input type="password" name="password" id="password" placeholder="••••••••" className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" />
+                                <input 
+                                    type="password" 
+                                    name="password" 
+                                    id="password" 
+                                    onChange={(e) => setPassword(e.target.value)} 
+                                    placeholder="••••••••" 
+                                    className="bg-gray-50 border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-primary-600 focus:border-primary-600 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" />
                             </div>
                             <div className="flex items-center justify-between">
                                 <div className="flex items-start">
