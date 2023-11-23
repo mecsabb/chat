@@ -1,34 +1,46 @@
 //TODO cleanup CSS tags
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
+import Navbar from "../components/Navbar";
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import Navbar from "../components/Navbar"
 
 export default function LoginPage() {
-
-    const [username, setUsername] = useState<string>(''); // TypeScript infers string type
-    const [password, setPassword] = useState<string>(''); // TypeScript infers string type
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
     const navigate = useNavigate();
+    const [websocket, setWebsocket] = useState<WebSocket | null>(null);
 
-    const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+    useEffect(() => {
+        return () => {
+            if (websocket) {
+                websocket.close();
+            }
+        };
+    }, [websocket]);
+
+    const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
         const basicAuth = 'Basic ' + window.btoa(username + ':' + password);
 
         try {
-            // Adjust the response type according to your API structure
-            const response = await axios.get('http://localhost:3333/login', {
+            await axios.get('http://localhost:3333/login', {
                 headers: { 'Authorization': basicAuth }
             });
 
-            // Handle successful login TBD
-            console.log(response.data);
+            // After successful login, establish a WebSocket connection
+            const ws = new WebSocket(`ws://localhost:3333/ws?username=${encodeURIComponent(username)}`);
+            setWebsocket(ws);
+
+            // Handle WebSocket events (open, message, error, close) as needed
+            ws.onopen = () => {
+                console.log("WebSocket connection established");
+            };
             navigate('/hub');
 
         } catch (error) {
             console.error('Login error:', error);
-            // Handle login error TBD
         }
     }
 
@@ -47,7 +59,7 @@ export default function LoginPage() {
                             <div>
                                 <label htmlFor="username" className="block mb-2 text-sm font-medium text-gray-900 dark:text-white">Username</label>
                                 <input 
-                                    type="username" 
+                                    type="text" 
                                     name="username" 
                                     id="username"
                                     onChange={(e) => setUsername(e.target.value)} 

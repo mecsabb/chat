@@ -1,14 +1,14 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/gorilla/sessions"
 )
 
 type User struct {
@@ -16,13 +16,10 @@ type User struct {
 	Password string `json:"password"`
 }
 
-// for localhost ease of use
-func enableCors(w *http.ResponseWriter) {
-	(*w).Header().Set("Access-Control-Allow-Origin", "*")
-}
+var store = sessions.NewCookieStore([]byte("your-very-secret-key")) // << TODO
 
 func getHome(w http.ResponseWriter, r *http.Request) {
-	enableCors(&w)
+
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Printf("PING /\n")
 
@@ -35,37 +32,60 @@ func getHome(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonResp)
 }
 
-func logRequest(r *http.Request) {
-	log.Println("------ New Request ------")
-	log.Printf("Method: %s\n", r.Method)
-	log.Printf("Path: %s\n", r.URL.Path)
-	log.Println("Headers:")
-
-	for name, headers := range r.Header {
-		for _, h := range headers {
-			log.Printf("%v: %v\n", name, h)
-		}
-	}
-
-	// Can remove if body of requests are long
-	if r.Body != nil {
-		bodyBytes, err := io.ReadAll(r.Body)
-		if err != nil {
-			log.Printf("Error reading body: %v", err)
-			return
-		}
-
-		// Ensure the request body can be read again for further processing
-		r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-		log.Printf("Body: %s\n", string(bodyBytes))
-	}
-
-	log.Println("------ End of Request ------")
-}
-
 func handleLogin(s *Server, w http.ResponseWriter, r *http.Request) {
 
-	logRequest(r)
+	username, password, ok := r.BasicAuth()
+	if !ok {
+		log.Println("Authorization header missing or invalid")
+		return
+	}
+
+	user := &User{Username: username, Password: password}
+
+	log.Printf("User: %s, Pass: %s\n", user.Username, user.Password)
+
+	// << TODO --------- VERIFY USER CREDS -----------
+	// throw / return if invalid
+
+	// Authentication successful, set session
+	session, _ := store.Get(r, "chat-session")
+	session.Values["authenticated"] = true
+	session.Values["username"] = user.Username
+
+	err := session.Save(r, w)
+	if err != nil {
+		log.Printf("Error saving session: %v\n", err)
+		http.Error(w, "Error saving session", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte("Logged in successfully"))
+
+}
+
+func handleWs(s *Server, w http.ResponseWriter, r *http.Request) {
+
+	// session, err := store.Get(r, "chat-session")
+	// if err != nil {
+	// 	http.Error(w, "Error fetching session", http.StatusInternalServerError)
+	// 	return
+	// }
+
+	// // Check if the session has a username and it's a string
+	// username, ok := session.Values["username"].(string)
+	// if !ok || username == "" {
+	// 	// Handle the case where the username is not set or not a string
+	// 	log.Println("ERROR: username could not be found (handleWs)")
+	// 	http.Error(w, "Unauthorized - No session username found", http.StatusUnauthorized)
+	// 	return
+	// }
+
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		log.Println("ERROR: username is empty")
+		http.Error(w, "Unauthorized - No username provided", http.StatusUnauthorized)
+		return
+	}
 
 	if r.Method == "GET" {
 
@@ -74,32 +94,24 @@ func handleLogin(s *Server, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		username, password, ok := r.BasicAuth()
-		if !ok {
-			log.Println("Authorization header missing or invalid")
-			return
-		}
-
-		user := &User{Username: username, Password: password}
-
-		log.Printf("User: %s, Pass: %s\n", user.Username, user.Password)
-
-		// << TODO --------- VERIFY USER CREDS -----------
-		// throw / return if invalid
-
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Println(err)
 			return
 		}
 
-		client := &Client{user: user.Username, ws: conn, server: s, message: make(chan *Task)}
+		client := &Client{user: username, ws: conn, server: s, message: make(chan *Task)}
 		client.server.register <- client
 
 		// Spin client
+		log.Printf("INFO: go client %s", username)
 		go client.listen()
 		go client.write()
 	}
+}
+
+func testAuth(w http.ResponseWriter, r *http.Request) {
+
 }
 
 func main() {
@@ -113,12 +125,19 @@ func main() {
 
 	go server.spin()
 
-	http.HandleFunc("/", getHome)
-	http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-		handleLogin(server, w, r)
-	})
+	mux := http.NewServeMux()
 
-	err := http.ListenAndServe(":3333", nil)
+	mux.Handle("/", logRequest(enableCors(http.HandlerFunc(getHome))))
+
+	mux.Handle("/login", logRequest(enableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handleLogin(server, w, r)
+	}))))
+
+	mux.Handle("/ws", logRequest(enableCors(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handleWs(server, w, r)
+	}))))
+
+	err := http.ListenAndServe(":3333", mux)
 	if errors.Is(err, http.ErrServerClosed) {
 		fmt.Printf("server closed\n")
 	} else if err != nil {
