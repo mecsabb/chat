@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -10,6 +11,14 @@ import (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		// Allow specific origins
+		allowedOrigin := "http://127.0.0.1:5173"
+		if r.Header.Get("Origin") == allowedOrigin {
+			return true
+		}
+		return false
+	},
 }
 
 const (
